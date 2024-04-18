@@ -1,0 +1,124 @@
+---
+title: "Homework 9"
+author: "Valentina Trevino"
+date: "2024-04-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(tidyverse)
+library(knitr)
+library(tibble)
+library(dplyr)
+library(kableExtra)
+library(mosaic)
+library(minpack.lm)
+```
+
+### Problem 1: Get out the vote ###
+#### Part A. How much more likely are GOTV call recipients to have voted in 1998? As a preliminary analysis, calculate the following quantities. ####
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+
+setwd("/Users/valentinatrevino/Desktop/spring '24/SDS")
+turnout_data <- read.csv("turnout.csv")
+
+call_yes <- turnout_data %>%
+  filter(turnout_data$GOTV_call == 1)
+call_no <- turnout_data %>%
+  filter(turnout_data$GOTV_call == 0)
+
+proportion_yes <- round(mean(call_yes$voted1998), 2)
+cat("Proportion of GOTV call recipients who voted in 1998:", proportion_yes, "\n")
+
+proportion_no <- round(mean(call_no$voted1998), 2)
+cat("Sample proportion of those who did not receive a GOTV call who voted in 1998:", proportion_no, "\n")
+
+diff_prop <- round(proportion_yes - proportion_no, 2)
+cat("Difference in proportions:", diff_prop, "\n")
+
+ggplot(turnout_data, aes(x = factor(voted1998),)) +
+  geom_bar(fill = "lightblue", color = "black", alpha = 0.7) +
+  facet_wrap(~GOTV_call, scales = "free") +
+  labs(title = "Voting in 1998 by GOTV Call Status (0 = Did not receive call, 1 = Received Call", x = "Voted in 1998 (1 = Yes, 0 = No)", y = "Frequency") + theme_minimal()
+
+```
+
+###### The results above indicate a noticeable disparity of approximately 21% between the proportion of individuals who received a GOTV call and voted in 1998 compared to those who did not receive a GOTV call but voted. Specifically, approximately 65% of GOTV call recipients voted in 1998, while only 44% of those who did not receive a GOTV call voted in the same year.######
+###### However, as we can see by the bar graph, the number of people who did not receive a call is much larger than those who did. ######
+
+#### Part B. Consider the voted1996, AGE, and MAJORPTY variables. Provide evidence that at all three of these variables are confounders that prevent the difference you observed in Part A from representing the true causal effect of the GOTV call on the likelihood that a person voted in 1998. Confounders here would be factors that make someone more likely to receive a GOTV call and to have voted in 1998. Your evidence here can consist of any appropriate plot, table, or set of summary statistics. ####
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+ggplot(turnout_data, aes(x = factor(voted1996), fill = factor(GOTV_call))) +
+  geom_bar(position = "dodge", alpha = 0.7) +
+  labs(title = "Distribution of People who Voted in 1996 by GOTV Call Status",
+       x = "Voted in 1996 (0 = No, 1 = Yes)", y = "Frequency", fill = "GOTV Call") +
+  theme_minimal()
+
+ggplot(turnout_data, aes(x = AGE, fill = factor(GOTV_call))) +
+  geom_density(alpha = 0.7) +
+  labs(title = "Distribution of Age by GOTV Call Status",
+       x = "Age", y = "Density", fill = "GOTV Call") +
+  theme_minimal()
+
+ggplot(turnout_data, aes(x = factor(MAJORPTY), fill = factor(GOTV_call))) +
+  geom_bar(position = "dodge", alpha = 0.7) +
+  labs(title = "Distribution of MAJORPTY by GOTV Call Status",
+       x = "MAJORPTY (0 = No, 1 = Yes)", y = "Frequency", fill = "GOTV Call") +
+  theme_minimal()
+
+```
+
+### Problem 2: Manufacturing flaws in circuit board ###
+#### Part A: Make two plots. The first plot should provide evidence that the size of the opening on the solder gun is related to the number of skips. The second should provide evidence that the thickness of the alloy used for soldering is related to the number of skips. Give each plot an informative caption describing what is shown in the plot. ####
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+solder_data <- read.csv("solder.csv")
+
+ggplot(solder_data, aes(x = Opening, y = skips)) + geom_boxplot(fill = "plum1", color = "black") + labs(title = "Relationship between Opening Size and Number of Skips", x = "Opening Size", y = "Number of Skips") +
+  theme_minimal()
+```
+
+##### In the boxplot above, a noticeable relationship emerges between the opening size of the solder gun and the number of skips on the circuit board, indicating manufacturing flaws. Notably, the smallest opening size exhibits the highest number of skips, while the largest size demonstrates the fewest. Consequently, it can be inferred that as the size of the opening of the solder gun increases, the number of skips decreases. #####
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+
+ggplot(solder_data, aes(x = Solder, y = skips)) + geom_boxplot(fill = "plum1", color = "black") + labs(title = "Relationship between Solder Thickness and Skips", x = "Solder Thickness", y = "Number of Skips") + theme_minimal()
+
+```
+
+##### As these boxplots clearly portray, although not huge, there is a clear increase in the number of skips when the solder thikness is thin rather than thick. #####
+
+#### Part B: Build a regression model with skips as the outcome and with the following terms as predictors: ####
+#### • a main effect for Opening ####
+#### • a main effect for Solder type ####
+#### • an interaction between Opening and Solder type ####
+#### Make a table that shows the estimate and 95% large-sample confidence interval for each coefficient in your model. ####
+
+```{r, warning=FALSE, echo=FALSE, message=FALSE}
+model <- lm(skips ~ Opening + Solder + Opening:Solder, data = solder_data)
+coef(model) %>%
+  round(0)
+
+confint(model, level = 0.95) %>% round(0)
+
+```
+
+### Part C: Interpret each estimated coefficient in your model in no more than 1-2 sentences. A good template here is provided in the course packet, when we fit a model for the video games data that had an interaction in it and interpreted each coefficient in a sentence or two. ###
+
+##### What the coefficients displayed by the regression model above indicate: #####
+##### - The intercept suggests that the number of skips will be close to zero when the opening size and solder thickness are at the baseline levels, which are "L" opening and thick solder. #####
+##### - The coefficient of 2 under "Opening M" suggests that the number of skips will increase by two if the opening size is "M" and the thickness level does not change.. #####
+##### - The coefficient of 5 for "Opening S" indicates that the number of skips will increase by 5 as the thickness remains constant. #####
+##### - The other three coefficients indicate the increase and decrease in the number of skips when the solder thickness is thin and the size changes between "M" and "S". #####
+
+### Part D: If you had to recommend a combination of Opening size and Solder thickness to AT&T based on this analysis, which one would it be, and why? (Remember, the goal is to minimize the number of skips in the manufacturing process.) ###
+
+##### Based on the analysis, the recommended combination of Opening size and Solder thickness to minimize the number of skips in the manufacturing process would be: #####
+
+#### Opening size: Small ("S") ####
+#### Solder thickness: Thick ####
+
+##### This recommendation is supported by the interpretation of the Intercept coefficient, which suggests that the baseline levels (small Opening size and thick Solder thickness) result in close to zero skips. Therefore, opting for these baseline levels minimizes the number of skips in the manufacturing process. #####
